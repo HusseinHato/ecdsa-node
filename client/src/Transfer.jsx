@@ -1,7 +1,12 @@
 import { useState } from "react";
 import server from "./server";
 
-function Transfer({ address, setBalance }) {
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { sha256 } from '@noble/hashes/sha256';
+
+import { bytesToHex, hexToBytes, concatBytes, utf8ToBytes } from '@noble/curves/abstract/utils';
+
+function Transfer({ setBalance, privateKey }) {
   const [sendAmount, setSendAmount] = useState("");
   const [recipient, setRecipient] = useState("");
 
@@ -10,17 +15,24 @@ function Transfer({ address, setBalance }) {
   async function transfer(evt) {
     evt.preventDefault();
 
+    const signature = secp256k1.sign(sha256(utf8ToBytes(sendAmount)), privateKey)
+
     try {
       const {
         data: { balance },
       } = await server.post(`send`, {
-        sender: address,
         amount: parseInt(sendAmount),
         recipient,
+        signature: signature.toDERHex(),
+        recoveryId: signature.recovery
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       setBalance(balance);
     } catch (ex) {
-      alert(ex.response.data.message);
+      alert(ex);
     }
   }
 
